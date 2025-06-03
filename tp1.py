@@ -1,3 +1,5 @@
+import csv
+import math
 from typing import List, Dict, Set, Optional
 
 
@@ -86,57 +88,89 @@ class Vehiculos:
             return False
         else:
             return True
+        
+class Planificador:
+    def __init__(self):
+        self
 
 
-# class Ferroviario(Vehiculos):
-#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
 
-
-# class Maritimo(Vehiculos):
-#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-# class Automotor(Vehiculos):
-#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-# class Aereo(Vehiculos):
-#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-# class Camino:
-#     def __init__(
-#         self,
-#     ):
-#         pass
-
-
-"""
-class SolicitudTransporte() que tome
-    ● Identificación de la Carga.
-    ● Peso de la Carga: kilogramos (kg).
-    ● Nodo de Origen: La ciudad donde se recoge la carga.
-    ● Nodo de Destino: La ciudad final donde se debe entregar la carga
-
-class TramoItinerario
-    ● conexion
-    ● vehiculo (tipo vehiculo)
-    ● carga  (en kg)
-
-    metodos: 
-        - calcular_tiempo
-        - calcular_costo
-
-class Itinerario
-    ● tramos: Lista de TramoItinerario
-    ● kpi: str  'costo' o 'tiempo'
+class SolicitudTransporte:
+    def __init__(self, identificacion_carga: str, peso_carga: float , nodo_origen: Nodo, nodo_destino: Nodo):
+        self.identificacion_carga=identificacion_carga
+        self.peso_carga=peso_carga
+        self.nodo_origen=nodo_origen
+        self.nodo_destino=nodo_destino
     
-    metodos:
-        - tiempo_total
-        - costo_total
-        - mostrar_resumen
-"""
+
+    @staticmethod
+    def leer_csv(nombre_archivo):
+        ident_carga = []
+        peso = []
+        nodo_origen = []
+        nodo_destino = []
+        
+        with open(nombre_archivo, 'r') as archivo:
+            lector_csv = csv.reader(archivo)
+            archivo.readline()
+            for linea in lector_csv:
+                ident_carga.append(linea[0])
+                peso.append(linea[1])
+                nodo_origen.append(linea[2])    
+                nodo_destino.append(linea[3])
+        return ident_carga, peso, nodo_origen, nodo_destino
+    
+
+class TramoItinerario:
+    def __init__ (self, conexion:Conexion, vehiculo:Vehiculos, carga:float):
+        self.conexion=conexion
+        self.vehiculo=vehiculo
+        self.carga=carga
+    def calcular_tiempo(self):
+        return self.conexion.distancia_km/self.vehiculo.velocidad
+    def calcular_costo(self):
+        cantidad_vehiculos= math.ceil(self.carga/self.vehiculo.capacidad)
+        costo_x_vehiculo=(self.vehiculo.costo_fijo+self.vehiculo.costo_x_km*self.conexion.distancia_km+self.vehiculo.costo_x_kg*self.carga)
+        return cantidad_vehiculos * costo_x_vehiculo
+
+        
+class Itinerario:
+    def __init__(self, tramos: List[TramoItinerario], kpi: str):
+        self.tramos = tramos
+        self.kpi = kpi
+
+    def tiempo_total(self):
+        return sum(tramo.calcular_tiempo() for tramo in self.tramos)
+    def costo_total(self):
+        return sum(tramo.calcular_costo() for tramo in self.tramos)
+
+    def __str___(self):
+        texto='Resumen'
+        for i in range(len(self.tramos)):
+            texto+='Tramo' + str(i+1) + ':'+ str(self.tramos[i])+'\n'
+        texto+='Tiempo total en horas: ' + str(self.tiempo_total())+'\n'
+        texto+='Costo total: ' + str (self.costo_total())+'\n'
+        texto+='KPI optimizado'+ self.kpi
+        return texto
+
+
+class Ferroviario(Vehiculos):
+     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+class Maritimo(Vehiculos):
+     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+class Automotor(Vehiculos):
+     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+class Aereo(Vehiculos):
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
