@@ -7,7 +7,7 @@ from tpprueba import (
     cargar_nodos_desde_csv,
     cargar_conexiones_desde_csv,
     graficar_distancia_vs_tiempo,
-    graficar_costo_vs_distancia,  # <-- Asegurate de tenerlo implementado
+    graficar_costo_vs_distancia,  
     Aereo,
     Maritimo,
     Automotor,
@@ -57,6 +57,7 @@ def main():
                     print(itinerario)
                     graficar_distancia_vs_tiempo(itinerario)
                     graficar_costo_vs_distancia(itinerario)
+
                 else:
                     print("No se encontró un itinerario válido.")
 

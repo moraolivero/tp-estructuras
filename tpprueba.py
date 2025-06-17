@@ -319,6 +319,7 @@ def graficar_costo_vs_distancia(itinerario: Itinerario):
     plt.show()
 
 
+
 """ejemplo de recorrido de grafo
 Tener el tiempo minimo de todas los caminos posibles
 
