@@ -4,9 +4,8 @@ from typing import List, Dict, Set, Optional
 import matplotlib.pyplot as plt
 
 class Nodo:
-    def __init__(self, nombre: str, modos_disponibles: Set[str]):
+    def __init__(self, nombre: str):
         self.nombre = nombre
-        self.modos_disponibles = modos_disponibles
         self.conexiones: List["Conexion"] = []
 
     def agregar_conexion(self, conexion: "Conexion"):
@@ -16,7 +15,7 @@ class Nodo:
         return self.nombre
     
     def __eq__(self, other):
-        return isinstance (other, Nodo) and  self.nombre== other.nombre
+        return isinstance (other, Nodo) and  self.nombre == other.nombre
 
     def __hash__ (self):
         return hash (self.nombre)
@@ -29,16 +28,16 @@ class Conexion:
         destino: Nodo,
         modo: str,
         distancia_km: float,
-        velocidad_maxima: float,
-        peso_maximo: Optional[float] = None
-    ):
+        restriccion: Optional[str],
+        valor_restriccion: Optional[float]
+        ):
         self.origen = origen
         self.destino = destino
         self.modo = modo
         self.distancia_km = distancia_km
-        self.velocidad_maxima = velocidad_maxima
-        self.peso_maximo=peso_maximo
-        self.probabilidad_mal_clima:Optional[float]=None
+        self.restriccion = restriccion
+        self.valor_restriccion = valor_restriccion
+
     def __str__(self):
         return f"{self.origen}  -> {self.destino} ({self.modo}, {self.distancia_km} km)"
 
@@ -99,9 +98,7 @@ class Planificador:
         mejores_itinerarios = []
 
         for conexion in nodo_actual.conexiones:
-            # Validar peso máximo antes de considerar la conexión
-            if conexion.peso_maximo is not None and carga > conexion.peso_maximo:
-                # La carga es mayor que la capacidad máxima permitida en esta conexión: saltar
+            if conexion.restriccion == "peso maximo"  and carga > conexion.valor_restriccion:
                 continue
 
             siguiente_nodo = conexion.destino
@@ -189,20 +186,22 @@ class TramoItinerario:
         self.carga = carga
 
     def calcular_tiempo(self):
-        velocidad = min(self.vehiculo.velocidad, self.conexion.velocidad_maxima)
-        if self.vehiculo.modo=='Aereo' and self.conexion.probabilidad_mal_clima:
-            velocidad*= (1-self.conexion.probabilidad_mal_clima)
+        if self.conexion.restriccion == "velocidad_maxima":
+            velocidad = min(self.vehiculo.velocidad, self.conexion.valor_restriccion)
+        elif self.vehiculo.modo == "Aereo" and self.conexion.restriccion == "probabilidad_mal_clima":
+            velocidad = self.vehiculo.velocidad * (1 - self.conexion.valor_restriccion)
+        else:
+            velocidad = self.vehiculo.velocidad
         return self.conexion.distancia_km / velocidad
 
-    def calcular_costo(self):
+    def calcular_costo_sin_kg(self):
         cantidad_vehiculos = math.ceil(self.carga / self.vehiculo.capacidad)
-        costo_x_vehiculo = (
-            self.vehiculo.costo_fijo
-            + self.vehiculo.costo_x_km * self.conexion.distancia_km
-            + self.vehiculo.costo_x_kg * self.carga
+        return cantidad_vehiculos * (
+            self.vehiculo.costo_fijo + self.vehiculo.costo_x_km * self.conexion.distancia_km
         )
-        return cantidad_vehiculos * costo_x_vehiculo
-
+    
+    def calcular_costo(self):
+        return self.calcular_costo_sin_kg() 
 
 class Itinerario:
     def __init__(self, tramos: List[TramoItinerario], kpi: str):
@@ -213,35 +212,44 @@ class Itinerario:
         return sum(tramo.calcular_tiempo() for tramo in self.tramos)
 
     def costo_total(self):
-        return sum(tramo.calcular_costo() for tramo in self.tramos)
+        costo_tramos = sum(tramo.calcular_costo_sin_kg() for tramo in self.tramos)
+        if self.tramos:
+            costo_x_kg = self.tramoa[0].vehiculo.costo_x_kg * self.tramos[0].carga
+        else:
+            costo_x_kg = 0
+        return costo_tramos + costo_x_kg
 
     def __str__(self):
         texto = "Resumen\n"
-        for i in range(len(self.tramos)):
-            texto += "Tramo " + str(i + 1) + ": " + str(self.tramos[i].conexion) + "\n"
-        texto += "Tiempo total en horas: " + str(self.tiempo_total()) + "\n"
-        texto += "Costo total: " + str(self.costo_total()) + "\n"
-        texto += "KPI optimizado: " + self.kpi + "\n"
+        for i, tramo in enumerate(self.tramos):
+            texto += f"  Tramo {i + 1}: {tramo.conexion}\n"
+        texto += f"Tiempo total (horas): {self.tiempo_total():.2f}\n"
+        texto += f"Costo total: ${self.costo_total():.2f}\n"
+        texto += f"KPI optimizado: {self.kpi.upper()}\n"
         return texto
 
 
 class Ferroviario(Vehiculos):
-    def _init_(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+    def calcular_costo_por_km(self, distancia_km: float) -> float:
+        if distancia_km > 300:
+            return 15  
+        return self.costo_x_km
 
 
 class Maritimo(Vehiculos):
-    def _init_(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
 
 
 class Automotor(Vehiculos):
-    def _init_(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
 
 
 class Aereo(Vehiculos):
-    def _init_(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
 
 
@@ -250,9 +258,8 @@ def cargar_nodos_desde_csv(ruta:str)-> Dict[str, Nodo]:
     with open(ruta, newline='') as archivo:
         lector=csv.reader(archivo)
         next(lector)
-        for nombre, modos_str in lector:
-            modos=set(modos_str.split(','))
-            nodos[nombre]= Nodo(nombre, modos)
+        for nombre, _ in lector:
+            nodos[nombre]= Nodo(nombre)
     return nodos
 
 def cargar_conexiones_desde_csv(ruta:str, nodos: Dict[str, Nodo]) -> None:
@@ -260,17 +267,16 @@ def cargar_conexiones_desde_csv(ruta:str, nodos: Dict[str, Nodo]) -> None:
         lector=csv.reader(archivo)
         next(lector)
         for linea in lector:
-            origen, destino, modo, distancia, v_max, peso_max, clima=linea
+            origen, destino, modo, distancia, restriccion, valor=linea
             if origen not in nodos or destino not in nodos:
-                raise ValueError(f'Origen o destino no encontradi en nodos:{linea}')
+                raise ValueError(f'Origen o destino no encontrado en nodos:{linea}')
             conexion=Conexion(origen=nodos[origen],
                               destino=nodos[destino],
                               modo=modo ,
                               distancia_km=float(distancia),
-                              velocidad_maxima=float(v_max),
-                              peso_maximo=float(peso_max) if peso_max else None)
-            if clima:
-                conexion.probabilidad_mal_clima=float(clima)
+                              restriccion=restriccion if restriccion else None,
+                valor_restriccion=float(valor) if valor else None
+            )
             nodos[origen].agregar_conexion(conexion)
 
 
@@ -294,7 +300,26 @@ def graficar_distancia_vs_tiempo(itinerario: Itinerario):
     plt.grid(True)
     plt.show()
 
-"""
+def graficar_costo_vs_distancia(itinerario: Itinerario):
+    distancias = []
+    costos = []
+    costo_acumulado = 0
+    distancia_acumulada = 0
+    for tramo in itinerario.tramos:
+        distancia_acumulada += tramo.conexion.distancia_km
+        costo_acumulado += tramo.calcular_costo_sin_kg()
+        distancias.append(distancia_acumulada)
+        costos.append(costo_acumulado)
+
+    plt.plot(distancias, costos, marker='o')
+    plt.xlabel("Distancia acumulada (km)")
+    plt.ylabel("Costo acumulado ($)")
+    plt.title("Costo vs. Distancia")
+    plt.grid(True)
+    plt.show()
+
+
+"""ejemplo de recorrido de grafo
 Tener el tiempo minimo de todas los caminos posibles
 
 Yo voy a recorrer nodo por nodo:  (for loop)

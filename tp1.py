@@ -1,10 +1,15 @@
 import csv
-import math
 from typing import List, Dict, Set, Optional
 
 
-
 class Nodo:
+    """
+    Voy a tener para cada nodo:
+        - nombre  'Azul'
+        - conexiones: List['Conexion'] :  Hasta Junin 265km, Hasta mar del plata 246km, ...
+        - modos_disponibles: modos disponibles de trasnporte  Ejemplo: {"Ferroviario", "Maritimo", "Automotor", "Aereo"}
+    """
+
     def __init__(self, nombre: str, modos_disponibles: Set[str]):
         self.nombre = nombre
         self.modos_disponibles = modos_disponibles
@@ -13,29 +18,36 @@ class Nodo:
     def agregar_conexion(self, conexion: "Conexion"):
         self.conexiones.append(conexion)
 
-    def __str__(self):
+    def __str__(self):  # print(nodo)
         return self.nombre
 
 
-class Conexion:
+class Conexion:  # docstrings --> documentation string --> string de documentacion
+    """
+    Conexion va a tomar:
+        - origen: de donde viene, por ejemplo de Junin
+        - destino: a donde va, por ejemplo a Zarate
+        - modo: el medio de transporte por el cual hago ese recorrido
+            - en el esquema dado en la pagina 8, entre Junin y Zarate voy a tener
+            una conexion para la red automotor y la red ferroviaria, pero no para
+            la maritima y la aerea.
+        - distancia_km: distancia
+
+    Ejemplo de una instancia:
+
+    Conexion(nodo_junin, nodo_zarate, 'automotor')
+    """
+
     def __init__(
-        self,
-        origen: Nodo,
-        destino: Nodo,
-        modo: str,
-        distancia_km: float,
-        velocidad_maxima: float,
-        peso_maximo: Optional[float] = None
-    ):
+        self, origen: Nodo, destino: Nodo, modo: str, distancia_km: float
+    ):  # TODO: faltan agregar parametros como la velocidad maxima, peso maximo (opcional, se puede usar una tabla definida en otra parte)
         self.origen = origen
         self.destino = destino
         self.modo = modo
         self.distancia_km = distancia_km
-        self.velocidad_maxima = velocidad_maxima
-        self.peso_maximo=peso_maximo
 
     def __str__(self):
-        return f"{self.origen}  -> {self.destino} ({self.modo}, {self.distancia_km} km)"
+        return f"{self.origen}  -> {self.destino} ({self.modo}, {self.distancia_km} km)"  # printear Junin -> Zarate ('automotor', 185 km)
 
 
 class Vehiculos:
@@ -71,305 +83,76 @@ class Vehiculos:
 
     @classmethod
     def validar_modo(cls, modo: str):
-        return modo in cls.tipo_vehiculo
-
-class Planificador:
-    def __init__(self, vehiculos: List[Vehiculos]):
-        self.vehiculos = vehiculos
-
-    def buscar_mejor_itinerario(
-        self,
-        nodo_actual: Nodo,
-        nodo_destino: Nodo,
-        carga: float,
-        kpi: str,
-        visitados: List[Nodo],
-        tramos_actuales: List["TramoItinerario"],
-    ) -> Optional["Itinerario"]:
-
-        if nodo_actual == nodo_destino:
-            return Itinerario(tramos_actuales, kpi)
-
-        visitados.append(nodo_actual)
-        mejores_itinerarios = []
-
-        for conexion in nodo_actual.conexiones:
-            # Validar peso máximo antes de considerar la conexión
-            if conexion.peso_maximo is not None and carga > conexion.peso_maximo:
-                # La carga es mayor que la capacidad máxima permitida en esta conexión: saltar
-                continue
-
-            siguiente_nodo = conexion.destino
-            if siguiente_nodo in visitados:
-                continue
-
-            vehiculos_compatibles = [
-                v for v in self.vehiculos if v.modo == conexion.modo
-            ]
-
-            for vehiculo in vehiculos_compatibles:
-                tramo = TramoItinerario(conexion, vehiculo, carga)
-                nuevo_tramo = tramos_actuales + [tramo]
-
-                itinerario = self.buscar_mejor_itinerario(
-                    siguiente_nodo, nodo_destino, carga, kpi, visitados.copy(), nuevo_tramo
-                )
-
-                if itinerario:
-                    mejores_itinerarios.append(itinerario)
-
-        if not mejores_itinerarios:
-            return None
-
-        if kpi == "tiempo":
-            return min(mejores_itinerarios, key=lambda i: i.tiempo_total())
-        elif kpi == "costo":
-            return min(mejores_itinerarios, key=lambda i: i.costo_total())
+        if modo not in cls.tipo_vehiculo:
+            return False
         else:
-            raise ValueError("KPI inválido. Debe ser 'tiempo' o 'costo'.")
+            return True
 
 
-    def planificar_itinerario(
-        self,
-        nodo_origen: Nodo,
-        nodo_destino: Nodo,
-        carga: float,
-        kpi: str
-    ) -> Optional["Itinerario"]:
-        return self.buscar_mejor_itinerario(
-            nodo_origen,
-            nodo_destino,
-            carga,
-            kpi,
-            visitados=[],
-            tramos_actuales=[],
-        )
+# class Ferroviario(Vehiculos):
+#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
 
+
+# class Maritimo(Vehiculos):
+#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+# class Automotor(Vehiculos):
+#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+# class Aereo(Vehiculos):
+#     def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+#         super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+# class Camino:
+#     def __init__(
+#         self,
+#     ):
+#         pass
 
 class SolicitudTransporte:
-    def __init__(
-        self,
-        identificacion_carga: str,
-        peso_carga: float,
-        nodo_origen: Nodo,
-        nodo_destino: Nodo,
-    ):
-        self.identificacion_carga = identificacion_carga
-        self.peso_carga = peso_carga
-        self.nodo_origen = nodo_origen
-        self.nodo_destino = nodo_destino
+    def __init__(self, identificacion_carga: str, pero_carga: float , nodo_origen: Nodo, nodo_destino: Nodo):
 
-    @staticmethod
+        pass
     def leer_csv(nombre_archivo):
-        ident_carga = []
-        peso = []
-        nodo_origen = []
-        nodo_destino = []
-
-        with open(nombre_archivo, "r") as archivo:
+        datos = []
+        
+        with open(nombre_archivo, 'r') as archivo:
             lector_csv = csv.reader(archivo)
             archivo.readline()
             for linea in lector_csv:
-                ident_carga.append(linea[0])
-                peso.append(linea[1])
-                nodo_origen.append(linea[2])
-                nodo_destino.append(linea[3])
-        return ident_carga, peso, nodo_origen, nodo_destino
-
-
-class TramoItinerario:
-    def __init__(self, conexion: Conexion, vehiculo: Vehiculos, carga: float):
-        self.conexion = conexion
-        self.vehiculo = vehiculo
-        self.carga = carga
-
-    def calcular_tiempo(self):
-        velocidad = min(self.vehiculo.velocidad, self.conexion.velocidad_maxima)
-        return self.conexion.distancia_km / velocidad
-
-    def calcular_costo(self):
-        cantidad_vehiculos = math.ceil(self.carga / self.vehiculo.capacidad)
-        costo_x_vehiculo = (
-            self.vehiculo.costo_fijo
-            + self.vehiculo.costo_x_km * self.conexion.distancia_km
-            + self.vehiculo.costo_x_kg * self.carga
-        )
-        return cantidad_vehiculos * costo_x_vehiculo
-
-
-class Itinerario:
-    def __init__(self, tramos: List[TramoItinerario], kpi: str):
-        self.tramos = tramos
-        self.kpi = kpi
-
-    def tiempo_total(self):
-        return sum(tramo.calcular_tiempo() for tramo in self.tramos)
-
-    def costo_total(self):
-        return sum(tramo.calcular_costo() for tramo in self.tramos)
-
-    def __str__(self):
-        texto = "Resumen\n"
-        for i in range(len(self.tramos)):
-            texto += "Tramo " + str(i + 1) + ": " + str(self.tramos[i].conexion) + "\n"
-        texto += "Tiempo total en horas: " + str(self.tiempo_total()) + "\n"
-        texto += "Costo total: " + str(self.costo_total()) + "\n"
-        texto += "KPI optimizado: " + self.kpi + "\n"
-        return texto
-
-
-class Ferroviario(Vehiculos):
-    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-class Maritimo(Vehiculos):
-    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-class Automotor(Vehiculos):
-    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-
-
-class Aereo(Vehiculos):
-    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
-        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
-"""
-Tener el tiempo minimo de todas los caminos posibles
-
-Yo voy a recorrer nodo por nodo:  (for loop)
- - Junin
- - Zarate
- - Azul
- - Mar del plata
-  
-  localidades_ya_visitadas = []
-  localidades_ya_visitadas.append(Junin)
-
-  para cada uno de estos nodos, me voy a fijar las conexiones:  (for loop)
-  Junin -- Conexiones -- [Zarate, Buenos Aires, Azul]
-
-    - Entro en Zarate, y me fijo las conexiones de Zarate que no esten en localidades_ya_visitadas
-        [ Buenos Aires ]
-            - Entro en Buenos Aires: 
-  
-
-
-
-
-
-Tener el tiempo minimo entre 2 localidades
-
-
-lista_de_caminos = [camino1, camino2]
-lista_de_tiempos = [tiempo1, tiempo2]
-lista_de_costos =  [costo1, costo2]
-
-LOCALIDAD_DE_ORIGEN = Junin
-LOCALIDAD_DE_DESTINO = Mar del plata
-
-localidades_ya_visitadas = []
-localidades_ya_visitadas.append(LOCALIDAD_DE_ORIGEN)
-
-
-Junin -- Conexiones -- [Zarate, Buenos Aires, Azul]
-- Entro en Zarate, y me fijo las conexiones de Zarate que no esten en localidades_ya_visitadas
-    [ Buenos Aires ]
-        - Entro en Buenos Aires: 
-        .
-        .
-        .
-        Hasta que 
-            Caso 1) Ya no me queden conexiones que no esten en localidades_ya_visitadas y que el nodo en el que me encuentro
-            sea el nodo LOCALIDAD_DE_DESTINO  ---> Voy a agregar este camino, con su tiempo y costo total respectivos a las listas
-            Caso 2) Ya no me queden conexiones que no esten en localidades_ya_visitadas y que el nodo en el que me encuentro no sea
-            el nodo LOCALIDAD_DE_DESTINO --> en este caso no hago nada, vuelvo en la recursion
- 
-
-def visitar_hijos(nodo, ya_visitados):
-    if len(nodo.conexiones) == 0:
-        return
-    for conexion in nodo.conexiones:
-        destino = conexion.destino
-        if not destino in ya_visitados:
-            visitar_hijos(destino, ya_visitados + [nodo])
-
+                datos.append(linea)
+        return datos
         
-visitar_hijos(Junin, []):
-                
-    Junin.conexiones [Junin-Zarate, Junin-Azul, Junin-Buenos Aires] --> 3
 
-    for conexion in [Junin-Zarate, Junin-Azul, Junin-Buenos Aires]:
-        conexion = Junin-Zarate
-        destino = Zarate
-        visitar_hijos(Zarate, [Junin])
 
-visitar_hijos(Zarate, [Junin]):
-    Zarate.conexiones [Zarate-Junin, Zarate-Buenos Aires] --> 2
-
-    for conexion in [Zarate-Junin, Zarate-Buenos Aires]:
-        Iteracion 1:
-            conexion = Zarate-Junin
-            destino = Junin
-            if not Junin in [Junin]:
-                --- no se ejecuta
-        Iteracion 2:
-            conexion = Zarate-Buenos Aires
-            destino = Buenos Aires
-            if not Buenos Aires in [Junin]:
-                visitar_hijos(Buenos Aires, [Junin, Buenos Aires])
 """
+class SolicitudTransporte() que tome
+    ● Identificación de la Carga.
+    ● Peso de la Carga: kilogramos (kg).
+    ● Nodo de Origen: La ciudad donde se recoge la carga.
+    ● Nodo de Destino: La ciudad final donde se debe entregar la carga
 
+class TramoItinerario
+    ● conexion
+    ● vehiculo (tipo vehiculo)
+    ● carga  (en kg)
 
+    metodos: 
+        - calcular_tiempo
+        - calcular_costo
 
-
-
-
-
-
-
-# Crear nodos
-zarate = Nodo("Zarate", {"Ferroviario", "Automotor", "Maritimo"})
-buenos_aires = Nodo("Buenos Aires", {"Ferroviario", "Automotor", "Maritimo"})
-mar_del_plata = Nodo("Mar del Plata", {"Ferroviario", "Automotor", "Maritimo"})
-
-# Crear conexiones según pdf:
-# Zárate → Buenos Aires: 85 km
-c1 = Conexion(zarate, buenos_aires, "Ferroviario", 85, 100)
-c1b = Conexion(zarate, buenos_aires, "Automotor", 85, 80)
-c1c = Conexion(zarate, buenos_aires, "Maritimo", 85, 40)
-
-# Buenos Aires → Mar del Plata: 384 km
-c2 = Conexion(buenos_aires, mar_del_plata, "Ferroviario", 384, 100)
-c2b = Conexion(buenos_aires, mar_del_plata, "Automotor", 384, 80)
-c2c = Conexion(buenos_aires, mar_del_plata, "Maritimo", 384, 40)
-
-# Agregar conexiones
-zarate.agregar_conexion(c1); zarate.agregar_conexion(c1b); zarate.agregar_conexion(c1c)
-buenos_aires.agregar_conexion(c2); buenos_aires.agregar_conexion(c2b); buenos_aires.agregar_conexion(c2c)
-
-
-vehiculos = [
-    Ferroviario("Ferroviario", velocidad=100, capacidad=150000, costo_fijo=100, costo_x_km=20, costo_x_kg=3),
-    Automotor("Automotor", velocidad=80, capacidad=30000, costo_fijo=30, costo_x_km=5, costo_x_kg=1),
-    Maritimo("Maritimo", velocidad=40, capacidad=100000, costo_fijo=500, costo_x_km=15, costo_x_kg=2),
-]
-
-
-
-planificador = Planificador(vehiculos)
-
-# Solicitud: 70.000 kg desde Zárate hasta Mar del Plata
-carga = 70000
-
-# KPI: tiempo
-it_tiempo = planificador.planificar_itinerario(zarate, mar_del_plata, carga, kpi="tiempo")
-print("**Optimizando TIEMPO**:")
-print(it_tiempo)
-
-# KPI: costo
-it_costo = planificador.planificar_itinerario(zarate, mar_del_plata, carga, kpi="costo")
-print("**Optimizando COSTO**:")
-print(it_costo)
+class Itinerario
+    ● tramos: Lista de TramoItinerario
+    ● kpi: str  'costo' o 'tiempo'
+    
+    metodos:
+        - tiempo_total
+        - costo_total
+        - mostrar_resumen
+"""
