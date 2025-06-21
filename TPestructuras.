@@ -1,0 +1,411 @@
+import csv
+import math
+from typing import List, Dict, Set, Optional
+import matplotlib.pyplot as plt
+
+class Nodo:
+    """Representa un nodo o punto de conexión en la red."""
+    def __init__(self, nombre: str):
+        """Inicializa un nodo con un nombre y lista de conexiones vacía."""
+        self.nombre = nombre
+        self.conexiones: List["Conexion"] = []
+
+    def agregar_conexion(self, conexion: "Conexion"):
+        """Agrega una conexión saliente al nodo."""
+        self.conexiones.append(conexion)
+
+    def __str__(self):
+        """Retorna el nombre del nodo."""
+        return self.nombre
+    
+    def __eq__(self, other):
+        """Define igualdad basada en el nombre del nodo."""
+        return isinstance (other, Nodo) and  self.nombre == other.nombre
+
+    def __hash__ (self):
+        """Permite usar el nodo en estructuras hash (sets, dicts)."""
+        return hash (self.nombre)
+    
+
+class Conexion:
+    """Representa una conexión entre dos nodos con modo, distancia y restricciones."""
+    def __init__(
+        self,
+        origen: Nodo,
+        destino: Nodo,
+        modo: str,
+        distancia_km: float,
+        restriccion: Optional[str],
+        valor_restriccion: Optional[float]
+        ):
+        """Inicializa una conexión con sus atributos."""
+        self.origen = origen
+        self.destino = destino
+        self.modo = modo
+        self.distancia_km = distancia_km
+        self.restriccion = restriccion
+        self.valor_restriccion = valor_restriccion
+
+    def __str__(self):
+        """Representación en texto de la conexión."""
+        return f"{self.origen}  -> {self.destino} ({self.modo}, {self.distancia_km} km)"
+
+
+class Vehiculos:
+    """Clase base para vehículos con características y costos."""
+    tipo_vehiculo = ["Ferroviaria", "Maritimo", "Automotor", "Aerea"]
+
+    def __init__(
+        self,
+        modo: str,
+        velocidad: int,
+        capacidad: int,
+        costo_fijo: float,
+        costo_x_km: float,
+        costo_x_kg: float,
+    ):
+        """Inicializa un vehículo con sus atributos principales."""
+        self.modo = modo
+        self.velocidad = velocidad
+        self.capacidad = capacidad
+        self.costo_fijo = costo_fijo
+        self.costo_x_km = costo_x_km
+        self.costo_x_kg = costo_x_kg
+
+    def calcular_costo_por_km (self,distancia):
+        """Calcula costo por km (puede ser sobrescrito en subclases)."""
+        return self.costo_x_km 
+
+    def validar_int(dato):
+        """Valida que un dato sea entero."""
+        try:
+            dato = int(dato)
+        except TypeError:
+            raise TypeError("El dato ingresado no es un numero entero")
+
+    def validar_float(dato):
+        """Valida que un dato sea float."""
+        try:
+            dato = float(dato)
+        except TypeError:
+            raise TypeError("El dato ingresado no es un numero valido")
+
+    @classmethod
+    def validar_modo(cls, modo: str):
+        """Verifica que el modo esté entre los tipos válidos."""
+        return modo in cls.tipo_vehiculo
+
+class Planificador:
+    """Clase para planificar itinerarios óptimos según costo o tiempo."""
+    def __init__(self, vehiculos: List[Vehiculos]):
+        """Inicializa con la lista de vehículos disponibles."""
+        self.vehiculos = vehiculos
+
+    def buscar_mejor_itinerario(
+        self,
+        nodo_actual: Nodo,
+        nodo_destino: Nodo,
+        carga: float,
+        kpi: str,
+        visitados: List[Nodo],
+        tramos_actuales: List["TramoItinerario"],
+        modo_en_uso:Optional[str]=None
+    ) -> Optional["Itinerario"]:
+        """Busca recursivamente el mejor itinerario según el KPI indicado."""
+        if nodo_actual == nodo_destino:
+            return Itinerario(tramos_actuales, kpi)
+    
+        
+        mejores_itinerarios = []
+
+        visitados.append(nodo_actual)
+        
+        for conexion in nodo_actual.conexiones:
+            if conexion.restriccion == "peso maximo"  and carga > conexion.valor_restriccion:
+                continue
+
+            siguiente_nodo = conexion.destino
+            if siguiente_nodo in visitados:
+                continue
+
+            if modo_en_uso is not None and conexion.modo != modo_en_uso:
+                continue
+
+            vehiculos_compatibles = [
+                v for v in self.vehiculos if v.modo == conexion.modo
+            ]
+
+            for vehiculo in vehiculos_compatibles:
+                cantidad_vehiculos = math.ceil(carga/ vehiculo.capacidad)
+                if cantidad_vehiculos <=0:
+                    continue
+                tramo = TramoItinerario(conexion, vehiculo, carga)
+                nuevo_tramo = tramos_actuales + [tramo]
+                itinerario = self.buscar_mejor_itinerario(
+                    siguiente_nodo, nodo_destino, carga, kpi, visitados.copy(), nuevo_tramo, modo_en_uso or conexion.modo
+                )
+
+                if itinerario:
+                    mejores_itinerarios.append(itinerario)
+
+        if not mejores_itinerarios:
+            return None
+
+        if kpi == "tiempo":
+            return min(mejores_itinerarios, key=lambda i: i.tiempo_total())
+        elif kpi == "costo":
+            return min(mejores_itinerarios, key=lambda i: i.costo_total())
+        else:
+            raise ValueError("KPI inválido. Debe ser 'tiempo' o 'costo'.")
+
+
+    def planificar_itinerario(
+        self,
+        nodo_origen: Nodo,
+        nodo_destino: Nodo,
+        carga: float,
+        kpi: str
+    ) -> Optional["Itinerario"]:
+        """Inicia la planificación del itinerario desde origen a destino."""
+        return self.buscar_mejor_itinerario(
+            nodo_origen,
+            nodo_destino,
+            carga,
+            kpi,
+            visitados=[],
+            tramos_actuales=[],
+            modo_en_uso=None
+        )
+
+
+class SolicitudTransporte:
+    """Representa una solicitud de transporte con carga y nodos origen/destino."""
+    def __init__(
+        self,
+        identificacion_carga: str,
+        peso_carga: float,
+        nodo_origen: Nodo,
+        nodo_destino: Nodo,
+    ):
+        """Inicializa la solicitud con identificador, peso y nodos."""
+        self.identificacion_carga = identificacion_carga
+        self.peso_carga = peso_carga
+        self.nodo_origen = nodo_origen
+        self.nodo_destino = nodo_destino
+
+    @staticmethod
+    def leer_csv(nombre_archivo: str, nodos: Dict[str, Nodo])->List['SolicitudTransporte']:
+        """Carga solicitudes desde un archivo CSV dado un diccionario de nodos."""
+        solicitudes=[] 
+        with open (nombre_archivo, newline='') as archivo: 
+            lector= csv.reader (archivo)
+            next(lector)
+            for linea in lector:
+                if len(linea) != 4:
+                    print(f" Error en los datos de solicitud: {linea}")
+                    continue 
+                ident= linea[0]
+                peso= float(linea[1])
+                origen=nodos.get(linea[2])
+                destino= nodos.get(linea[3])
+                if origen is None or destino is None:
+                    raise ValueError (f'Nodo invalido')
+                solicitud=SolicitudTransporte(ident, peso, origen, destino)
+                solicitudes.append(solicitud)
+        return solicitudes 
+
+
+class TramoItinerario:
+    """Representa un tramo de un itinerario con conexión, vehículo y carga."""
+    def __init__(self, conexion: Conexion, vehiculo: Vehiculos, carga: float):
+        """Inicializa el tramo con conexión, vehículo y peso de carga."""
+        self.conexion = conexion
+        self.vehiculo = vehiculo
+        self.carga = carga
+
+    def calcular_tiempo(self):
+        """Calcula el tiempo necesario para completar el tramo."""
+        if self.conexion.restriccion == "velocidad_maxima":
+            velocidad = min(self.vehiculo.velocidad, self.conexion.valor_restriccion)
+        elif self.vehiculo.modo == "Aerea" and self.conexion.restriccion == "probabilidad_mal_clima":
+            velocidad = self.vehiculo.velocidad * (1 - self.conexion.valor_restriccion)
+        else:
+            velocidad = self.vehiculo.velocidad
+        return self.conexion.distancia_km / velocidad
+
+    def calcular_costo_sin_kg(self):
+        """Calcula el costo del tramo sin considerar el peso de la carga."""
+        cantidad_vehiculos = math.ceil(self.carga / self.vehiculo.capacidad)
+
+        if isinstance(self.vehiculo, Ferroviaria):
+            costo_km = self.vehiculo.calcular_costo_por_km(self.conexion.distancia_km)
+        else:
+            costo_km = self.vehiculo.costo_x_km
+
+        return cantidad_vehiculos * (
+            self.vehiculo.costo_fijo + costo_km * self.conexion.distancia_km
+        )
+
+    def calcular_costo(self):
+        """Calcula el costo total del tramo, incluyendo carga y tipo de vehículo."""
+        cantidad_vehiculos = math.ceil(self.carga / self.vehiculo.capacidad)
+    
+        if self.vehiculo.modo == "Fluvial":
+            costo_fijo = 500
+        elif self.vehiculo.modo == "Maritimo":
+            costo_fijo = 1500
+        else:
+            costo_fijo = self.vehiculo.costo_fijo
+
+        if isinstance(self.vehiculo, Ferroviaria):
+            costo_km = self.vehiculo.calcular_costo_por_km(self.conexion.distancia_km)
+        else:
+            costo_km = self.vehiculo.costo_x_km
+
+        costo_fijo_km = cantidad_vehiculos * (costo_fijo + costo_km * self.conexion.distancia_km)
+        costo_kg = self.vehiculo.costo_x_kg * self.carga
+
+        return costo_fijo_km + costo_kg
+ 
+
+class Itinerario:
+    """Representa un itinerario completo formado por varios tramos."""
+    def __init__(self, tramos: List[TramoItinerario], kpi: str):
+        """Inicializa con la lista de tramos y el KPI a optimizar."""
+        self.tramos = tramos
+        self.kpi = kpi
+
+    def tiempo_total(self):
+        """Calcula el tiempo total del itinerario sumando todos los tramos."""
+        return sum(tramo.calcular_tiempo() for tramo in self.tramos)
+
+    def costo_total(self):
+        """Calcula el costo total del itinerario sumando los tramos y peso."""
+        costo_tramos = sum(tramo.calcular_costo_sin_kg() for tramo in self.tramos)
+        if self.tramos:
+            costo_x_kg = self.tramos[0].vehiculo.costo_x_kg * self.tramos[0].carga
+        else:
+            costo_x_kg = 0
+        return costo_tramos + costo_x_kg
+
+    def __str__(self):
+        """Genera un resumen textual del itinerario."""
+        texto = "Resumen\n"
+        for i, tramo in enumerate(self.tramos):
+            texto += f"  Tramo {i + 1}: {tramo.conexion}\n"
+        texto += f"Tiempo total (horas): {self.tiempo_total():.2f}\n"
+        texto += f"Costo total: ${self.costo_total():.2f}\n"
+        texto += f"KPI optimizado: {self.kpi.upper()}\n"
+        return texto
+    
+
+
+class Ferroviaria(Vehiculos):
+    """Vehículo ferroviario con costo especial según distancia."""
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+        """Inicializa vehículo ferroviario."""
+        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+    def calcular_costo_por_km(self, distancia: float) -> float:
+        """Calcula costo por km, con tarifa fija si distancia >= 200 km."""
+        if distancia >= 200:
+            return 15  
+        return self.costo_x_km 
+    
+class Maritimo(Vehiculos):
+    """Vehículo marítimo."""
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+        """Inicializa vehículo marítimo."""
+        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+class Automotor(Vehiculos):
+    """Vehículo automotor."""
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+        """Inicializa vehículo automotor."""
+        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+class Aerea(Vehiculos):
+    """Vehículo aéreo."""
+    def __init__(self, modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg):
+        """Inicializa vehículo aéreo."""
+        super().__init__(modo, velocidad, capacidad, costo_fijo, costo_x_km, costo_x_kg)
+
+
+
+def cargar_nodos_desde_csv(ruta:str)-> Dict[str, Nodo]:
+    """Carga nodos desde un archivo CSV y retorna un diccionario nombre->Nodo."""
+    nodos={}
+    with open(ruta, newline='') as archivo:
+        lector=csv.reader(archivo)
+        next(lector)
+        for fila in lector:
+            if len(fila) != 1:
+                print(f" Error en los datos: {fila}")
+                continue
+            nombre = fila[0]
+            nodo = Nodo(nombre) 
+            nodos[nombre]=nodo
+    return nodos
+
+def cargar_conexiones_desde_csv(ruta:str, nodos: Dict[str, Nodo]) -> None:
+    """Carga conexiones desde CSV y las agrega a los nodos correspondientes."""
+    with open(ruta, newline='') as archivo:
+        lector=csv.reader(archivo)
+        next(lector)
+        for fila in lector:
+            if len(fila) != 6:
+                print(f" Error en los datos: {fila}")
+                continue
+            origen, destino, modo, distancia, restriccion, valor = fila
+            if origen not in nodos or destino not in nodos:
+                raise ValueError(f'Origen o destino no encontrado en nodos: {fila}')
+            conexion = Conexion(
+                origen=nodos[origen],
+                destino=nodos[destino],
+                modo=modo,
+                distancia_km=float(distancia),
+                restriccion=restriccion if restriccion else None,
+                valor_restriccion=valor if valor else None
+            )
+            nodos[origen].agregar_conexion(conexion)
+
+
+
+def graficar_distancia_vs_tiempo(itinerario: Itinerario):
+    """Grafica distancia acumulada frente a tiempo acumulado del itinerario."""
+    distancias = []
+    tiempos = []
+    tiempo_acumulado = 0
+    distancia_acumulada = 0
+    for tramo in itinerario.tramos:
+        distancia_acumulada += tramo.conexion.distancia_km
+        tiempo_acumulado += tramo.calcular_tiempo()
+        distancias.append(distancia_acumulada)
+        tiempos.append(tiempo_acumulado)
+
+    plt.plot(tiempos, distancias, marker='o')
+    plt.xlabel("Tiempo acumulado (horas)")
+    plt.ylabel("Distancia acumulada (km)")
+    plt.title("Distancia vs. Tiempo")
+    plt.grid(True)
+    plt.show()
+
+def graficar_costo_vs_distancia(itinerario: Itinerario):
+    """Grafica costo acumulado frente a distancia acumulada del itinerario."""
+    distancias = []
+    costos = []
+    costo_acumulado = 0
+    distancia_acumulada = 0
+    for tramo in itinerario.tramos:
+        distancia_acumulada += tramo.conexion.distancia_km
+        costo_acumulado += tramo.calcular_costo_sin_kg()
+        distancias.append(distancia_acumulada)
+        costos.append(costo_acumulado)
+
+    plt.plot(distancias, costos, marker='o')
+    plt.xlabel("Distancia acumulada (km)")
+    plt.ylabel("Costo acumulado ($)")
+    plt.title("Costo vs. Distancia")
+    plt.grid(True)
+    plt.show()
