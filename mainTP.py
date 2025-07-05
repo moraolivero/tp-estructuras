@@ -1,18 +1,17 @@
-from TPestructuras import (
-    Nodo,
-    Conexion,
-    Vehiculos,
-    SolicitudTransporte,
-    Planificador,
+
+from SolicitudTransporte import SolicitudTransporte
+from Planificador import Planificador
+from utils import (
     cargar_nodos_desde_csv,
     cargar_conexiones_desde_csv,
     graficar_distancia_vs_tiempo,
     graficar_costo_vs_distancia,
-    Aerea,
-    Automotor,
-    Maritimo,
-    Ferroviaria
 )
+from Ferroviaria import Ferroviaria
+from Maritimo import Maritimo
+from Automotor import Automotor
+from Aerea import Aerea
+
 import sys
 
 def main():
@@ -64,12 +63,12 @@ def main():
 
     except FileNotFoundError as e:
         print(f" Archivo no encontrado: {e.filename}")
-        '''
+        
     except ValueError as e:
         print(f" Error en los datos: {e}")
     except Exception as e:
         print(f" Error inesperado: {e}")
         sys.exit(1)
-'''
+
 if __name__ == "__main__":
     main()
