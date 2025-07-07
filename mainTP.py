@@ -11,9 +11,7 @@ from Ferroviaria import Ferroviaria
 from Maritimo import Maritimo
 from Automotor import Automotor
 from Aerea import Aerea
-
 import sys
-
 def main():
     try:
         # 1. Cargar nodos
@@ -38,7 +36,8 @@ def main():
         planificador = Planificador(vehiculos)
 
         # 6. Procesar cada solicitud con ambos KPIs
-        for solicitud in solicitudes:
+        while solicitudes:
+            solicitud = solicitudes.popleft()
             print(f"\n=== Solicitud: {solicitud.identificacion_carga} ===")
             print(f"Origen: {solicitud.nodo_origen.nombre}")
             print(f"Destino: {solicitud.nodo_destino.nombre}")

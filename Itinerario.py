@@ -4,8 +4,17 @@ from TramoItinerario import TramoItinerario
 
 class Itinerario:
     """Representa un itinerario completo formado por varios tramos."""
+    KPI_VALIDOS = {'tiempo', 'costo'}
     def __init__(self, tramos: List[TramoItinerario], kpi: str):
         """Inicializa con la lista de tramos y el KPI a optimizar."""
+        if not isinstance(tramos, list):
+            raise TypeError("Los tramos deben ser una lista de TramoItinerario.")
+        if not all(isinstance(tramo, TramoItinerario) for tramo in tramos):
+            raise TypeError("Todos los tramos deben ser instancias de TramoItinerario.")
+        if kpi not in self.KPI_VALIDOS:
+            raise ValueError(f"KPI inválido. Debe ser uno de {self.KPI_VALIDOS}.")
+        if not tramos:
+            raise ValueError("La lista de tramos no puede estar vacía.")
         self.tramos = tramos
         self.kpi = kpi
 
